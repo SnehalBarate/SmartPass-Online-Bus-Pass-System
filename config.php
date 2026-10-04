@@ -1,10 +1,10 @@
 <?php
 
-$host = "127.0.0.1";
-$user = "root";
-$pass = "";
-$dbname = "bus_pass_db";
-$port = 3306;
+$host = getenv("DB_HOST");
+$user = getenv("DB_USER");
+$pass = getenv("DB_PASSWORD");
+$dbname = getenv("DB_NAME");
+$port = (int) getenv("DB_PORT");
 
 $conn = mysqli_connect($host, $user, $pass, $dbname, $port);
 
