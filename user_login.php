@@ -18,7 +18,7 @@ if (isset($_POST['login'])) {
 
     $stmt = mysqli_prepare(
         $conn,
-        "SELECT id, name, password FROM users 
+        "SELECT user_id, name, password FROM users 
          WHERE email = ? AND role = 'student' LIMIT 1"
     );
     mysqli_stmt_bind_param($stmt, "s", $email);
