@@ -1,174 +1,151 @@
 <?php
 session_start();
-require_once("../config.php");
+require_once "../config.php";
 
-/* Security Check */
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header("Location: ../admin_login.php");
     exit;
 }
 
-/* Fetch Students */
-$result = mysqli_query(
-    $conn,
-    "SELECT id, name, email 
-     FROM users 
-     WHERE role='student' 
-     ORDER BY id ASC"
-);
+$query = "SELECT user_id, name, email
+          FROM users
+          WHERE role = 'student'
+          ORDER BY user_id DESC";
+
+$result = mysqli_query($conn, $query);
+
+if (!$result) {
+    die("Database error: " . mysqli_error($conn));
+}
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Students | Admin</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Students | SmartPass</title>
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
 <style>
-body{
-    background:#eef1f5;
-    font-family:"Segoe UI", system-ui, sans-serif;
-    color:#374151;
+body {
+    background: #f8fafc;
+    font-family: 'Segoe UI', sans-serif;
 }
 
-/* Center Wrapper */
-.page-wrapper{
-    min-height:100vh;
-    display:flex;
-    align-items:flex-start;
-    justify-content:center;
-    padding-top:40px;
+.wrapper {
+    max-width: 1000px;
+    margin: 45px auto;
+    padding: 0 20px;
 }
 
-/* Card */
-.students-card{
-    width:100%;
-    max-width:900px;
-    background:#ffffff;
-    border:1px solid #d1d5db;
-    border-radius:14px;
-    box-shadow:0 14px 32px rgba(0,0,0,0.08);
-    overflow:hidden;
+.card-box {
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.06);
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
 }
 
-/* Header */
-.card-header{
-    padding:22px 26px;
-    border-bottom:1px solid #e5e7eb;
-    background:#f9fafb;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
+.header {
+    padding: 30px;
 }
 
-.card-header h4{
-    margin:0;
-    font-weight:700;
-    color:#111827;
+.table thead th {
+    background: #e2e8f0;
+    color: #1e293b;
+    padding: 15px;
 }
 
-.card-header small{
-    color:#6b7280;
+.table tbody td {
+    padding: 16px;
+    vertical-align: middle;
 }
 
-/* Avatar */
-.avatar{
-    width:36px;
-    height:36px;
-    background:#e5e7eb;
-    color:#1f2937;
-    border-radius:50%;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-weight:700;
-}
-
-/* Table */
-.table thead th{
-    background:#e5e7eb;
-    font-size:13px;
-    font-weight:700;
-    color:#111827;
-    border-bottom:2px solid #cbd5e1;
-}
-
-.table tbody td{
-    font-size:14px;
-    padding:14px;
-    border-bottom:1px solid #e5e7eb;
-}
-
-.table tbody tr:hover{
-    background:#f1f5f9;
-}
-
-/* Back Button */
-.btn-back{
-    font-size:13px;
-    font-weight:600;
+.avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-right: 12px;
 }
 </style>
 </head>
 
 <body>
 
-<div class="page-wrapper">
+<div class="wrapper">
 
-    <div class="students-card">
+    <div class="card-box">
 
-        <!-- Header -->
-        <div class="card-header">
+        <div class="header d-flex justify-content-between align-items-center">
             <div>
-                <h4><i class="fa fa-users me-2"></i>Student Directory</h4>
-                <small>Registered students list</small>
+                <h2 class="fw-bold mb-1">
+                    <i class="fa fa-users me-2"></i>Student Directory
+                </h2>
+                <p class="text-muted mb-0">Registered students list</p>
             </div>
-            <a href="dashboard.php" class="btn btn-sm btn-outline-secondary btn-back">
-                <i class="fa fa-arrow-left me-1"></i> Dashboard
+
+            <a href="dashboard.php" class="btn btn-outline-dark">
+                <i class="fa fa-arrow-left me-2"></i>Dashboard
             </a>
         </div>
 
-        <!-- Table -->
         <div class="table-responsive">
-            <table class="table mb-0 align-middle">
+            <table class="table mb-0">
                 <thead>
                     <tr>
-                        <th width="70">#</th>
+                        <th>#</th>
                         <th>Student Name</th>
                         <th>Email Address</th>
                     </tr>
                 </thead>
+
                 <tbody>
-                <?php $i=1; while($row = mysqli_fetch_assoc($result)): ?>
-                    <tr>
-                        <td class="text-muted"><?= $i++ ?></td>
-                        <td>
-                            <div class="d-flex align-items-center gap-3">
-                                <div class="avatar">
-                                    <?= strtoupper(substr($row['name'],0,1)) ?>
-                                </div>
-                                <span class="fw-semibold">
-                                    <?= htmlspecialchars($row['name']) ?>
-                                </span>
-                            </div>
-                        </td>
-                        <td class="text-muted">
-                            <?= htmlspecialchars($row['email']) ?>
-                        </td>
-                    </tr>
+
+                <?php
+                $count = 1;
+
+                while ($row = mysqli_fetch_assoc($result)):
+                    $name = $row['name'] ?? '';
+                    $email = $row['email'] ?? '';
+                    $initial = strtoupper(substr($name, 0, 1));
+                ?>
+
+                <tr>
+                    <td><?= $count++ ?></td>
+
+                    <td>
+                        <span class="avatar">
+                            <?= htmlspecialchars($initial) ?>
+                        </span>
+
+                        <strong>
+                            <?= htmlspecialchars($name) ?>
+                        </strong>
+                    </td>
+
+                    <td class="text-muted">
+                        <?= htmlspecialchars($email) ?>
+                    </td>
+                </tr>
+
                 <?php endwhile; ?>
 
-                <?php if(mysqli_num_rows($result)==0): ?>
-                    <tr>
-                        <td colspan="3" class="text-center text-muted py-4">
-                            No students found
-                        </td>
-                    </tr>
+                <?php if (mysqli_num_rows($result) === 0): ?>
+                <tr>
+                    <td colspan="3" class="text-center text-muted py-4">
+                        No students registered.
+                    </td>
+                </tr>
                 <?php endif; ?>
+
                 </tbody>
             </table>
         </div>
