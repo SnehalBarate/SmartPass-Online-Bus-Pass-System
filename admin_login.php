@@ -12,7 +12,6 @@ if (isset($_POST['admin_login'])) {
     $username = trim($_POST['email']);
     $password = $_POST['password'];
 
-    // ================= ADMIN TABLE LOGIN =================
     $stmt = mysqli_prepare(
         $conn,
         "SELECT admin_id, username, password
@@ -21,21 +20,25 @@ if (isset($_POST['admin_login'])) {
          LIMIT 1"
     );
 
+    if (!$stmt) {
+        die("Database query error: " . mysqli_error($conn));
+    }
+
     mysqli_stmt_bind_param($stmt, "s", $username);
     mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
 
-    if ($admin = mysqli_fetch_assoc($result)) {
+    mysqli_stmt_bind_result($stmt, $admin_id, $admin_username, $admin_password);
 
-        // Current admin table stores password as plain text
-        if ($password === $admin['password']) {
+    if (mysqli_stmt_fetch($stmt)) {
+
+        if ($password === $admin_password) {
 
             session_unset();
             session_regenerate_id(true);
 
-            $_SESSION['admin_id'] = $admin['admin_id'];
-            $_SESSION['user_id'] = $admin['admin_id'];
-            $_SESSION['name'] = $admin['username'];
+            $_SESSION['admin_id'] = $admin_id;
+            $_SESSION['user_id'] = $admin_id;
+            $_SESSION['name'] = $admin_username;
             $_SESSION['role'] = 'admin';
 
             header("Location: admin/dashboard.php");
@@ -48,5 +51,7 @@ if (isset($_POST['admin_login'])) {
     } else {
         $error = "Admin not found";
     }
+
+    mysqli_stmt_close($stmt);
 }
 ?>
