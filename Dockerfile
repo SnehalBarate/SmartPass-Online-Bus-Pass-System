@@ -6,4 +6,6 @@ COPY . /var/www/html/
 
 RUN a2enmod rewrite
 
+RUN chown -R www-data:www-data /var/www/html/uploads && chmod -R 775 /var/www/html/uploads
+
 EXPOSE 80
