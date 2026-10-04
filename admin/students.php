@@ -1,181 +1,162 @@
 <?php
 session_start();
-require_once("../config.php");
+require_once "../config.php";
 
-/* Security Check */
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+// Admin authentication
+if (!isset($_SESSION['admin_id']) || $_SESSION['role'] !== 'admin') {
     header("Location: ../admin_login.php");
-    exit;
+    exit();
 }
 
-/* Fetch Students */
-$result = mysqli_query(
-    $conn,
-    "SELECT id, name, email 
-     FROM users 
-     WHERE role='student' 
-     ORDER BY id ASC"
-);
+// Fetch all students
+$query = "SELECT user_id, name, email, phone FROM users WHERE role = 'student' ORDER BY user_id DESC";
+$result = mysqli_query($conn, $query);
+
+if (!$result) {
+    die("Database Error: " . mysqli_error($conn));
+}
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Students | Admin</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Students - SmartPass</title>
 
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
-<style>
-body{
-    background:#eef1f5;
-    font-family:"Segoe UI", system-ui, sans-serif;
-    color:#374151;
-}
+    <style>
+        body {
+            background: #f4f6f9;
+        }
 
-/* Center Wrapper */
-.page-wrapper{
-    min-height:100vh;
-    display:flex;
-    align-items:flex-start;
-    justify-content:center;
-    padding-top:40px;
-}
+        .navbar {
+            background: #0d6efd;
+        }
 
-/* Card */
-.students-card{
-    width:100%;
-    max-width:900px;
-    background:#ffffff;
-    border:1px solid #d1d5db;
-    border-radius:14px;
-    box-shadow:0 14px 32px rgba(0,0,0,0.08);
-    overflow:hidden;
-}
+        .navbar-brand,
+        .nav-link {
+            color: white !important;
+        }
 
-/* Header */
-.card-header{
-    padding:22px 26px;
-    border-bottom:1px solid #e5e7eb;
-    background:#f9fafb;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-}
+        .container {
+            margin-top: 40px;
+        }
 
-.card-header h4{
-    margin:0;
-    font-weight:700;
-    color:#111827;
-}
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
 
-.card-header small{
-    color:#6b7280;
-}
+        .table th {
+            background: #0d6efd;
+            color: white;
+        }
 
-/* Avatar */
-.avatar{
-    width:36px;
-    height:36px;
-    background:#e5e7eb;
-    color:#1f2937;
-    border-radius:50%;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-weight:700;
-}
-
-/* Table */
-.table thead th{
-    background:#e5e7eb;
-    font-size:13px;
-    font-weight:700;
-    color:#111827;
-    border-bottom:2px solid #cbd5e1;
-}
-
-.table tbody td{
-    font-size:14px;
-    padding:14px;
-    border-bottom:1px solid #e5e7eb;
-}
-
-.table tbody tr:hover{
-    background:#f1f5f9;
-}
-
-/* Back Button */
-.btn-back{
-    font-size:13px;
-    font-weight:600;
-}
-</style>
+        .table {
+            vertical-align: middle;
+        }
+    </style>
 </head>
 
 <body>
 
-<div class="page-wrapper">
+<nav class="navbar navbar-expand-lg">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-bold" href="dashboard.php">
+            SmartPass Admin
+        </a>
 
-    <div class="students-card">
+        <div>
+            <a class="nav-link d-inline-block" href="dashboard.php">Dashboard</a>
+            <a class="nav-link d-inline-block" href="manage_passes.php">Manage Passes</a>
+            <a class="nav-link d-inline-block" href="students.php">Students</a>
+            <a class="nav-link d-inline-block" href="../logout.php">Logout</a>
+        </div>
+    </div>
+</nav>
 
-        <!-- Header -->
-        <div class="card-header">
+<div class="container">
+
+    <div class="card p-4">
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h4><i class="fa fa-users me-2"></i>Student Directory</h4>
-                <small>Registered students list</small>
+                <h2 class="fw-bold mb-1">Students</h2>
+                <p class="text-muted mb-0">Registered student accounts</p>
             </div>
-            <a href="dashboard.php" class="btn btn-sm btn-outline-secondary btn-back">
-                <i class="fa fa-arrow-left me-1"></i> Dashboard
-            </a>
+
+            <span class="badge bg-primary fs-6">
+                <?php echo mysqli_num_rows($result); ?> Students
+            </span>
         </div>
 
-        <!-- Table -->
         <div class="table-responsive">
-            <table class="table mb-0 align-middle">
+
+            <table class="table table-bordered table-hover text-center">
+
                 <thead>
                     <tr>
-                        <th width="70">#</th>
-                        <th>Student Name</th>
-                        <th>Email Address</th>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
                     </tr>
                 </thead>
-                <tbody>
-                <?php $i=1; while($row = mysqli_fetch_assoc($result)): ?>
-                    <tr>
-                        <td class="text-muted"><?= $i++ ?></td>
-                        <td>
-                            <div class="d-flex align-items-center gap-3">
-                                <div class="avatar">
-                                    <?= strtoupper(substr($row['name'],0,1)) ?>
-                                </div>
-                                <span class="fw-semibold">
-                                    <?= htmlspecialchars($row['name']) ?>
-                                </span>
-                            </div>
-                        </td>
-                        <td class="text-muted">
-                            <?= htmlspecialchars($row['email']) ?>
-                        </td>
-                    </tr>
-                <?php endwhile; ?>
 
-                <?php if(mysqli_num_rows($result)==0): ?>
+                <tbody>
+
+                <?php if (mysqli_num_rows($result) > 0): ?>
+
+                    <?php while ($row = mysqli_fetch_assoc($result)): ?>
+
+                        <tr>
+                            <td>
+                                <?php echo htmlspecialchars($row['user_id']); ?>
+                            </td>
+
+                            <td>
+                                <?php echo htmlspecialchars($row['name']); ?>
+                            </td>
+
+                            <td>
+                                <?php echo htmlspecialchars($row['email']); ?>
+                            </td>
+
+                            <td>
+                                <?php
+                                echo !empty($row['phone'])
+                                    ? htmlspecialchars($row['phone'])
+                                    : 'Not Provided';
+                                ?>
+                            </td>
+                        </tr>
+
+                    <?php endwhile; ?>
+
+                <?php else: ?>
+
                     <tr>
-                        <td colspan="3" class="text-center text-muted py-4">
-                            No students found
+                        <td colspan="4" class="text-muted py-4">
+                            No students found.
                         </td>
                     </tr>
+
                 <?php endif; ?>
+
                 </tbody>
+
             </table>
+
         </div>
 
     </div>
 
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
 </html>
