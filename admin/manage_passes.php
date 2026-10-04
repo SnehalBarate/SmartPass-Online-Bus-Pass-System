@@ -1,9 +1,8 @@
 <?php
-// English Comments: Session and Database initialization
+// ================= ADMIN AUTHENTICATION =================
 session_start();
 require_once "../config.php";
 
-// ================= ADMIN AUTHENTICATION CHECK =================
 if (
     !isset($_SESSION['user_id']) ||
     !isset($_SESSION['role']) ||
@@ -13,7 +12,7 @@ if (
     exit;
 }
 
-// ================= ACTION LOGIC (Approve/Reject) =================
+// ================= ACTION LOGIC =================
 if (isset($_GET['action_id']) && isset($_GET['new_status'])) {
 
     $id = intval($_GET['action_id']);
@@ -25,38 +24,45 @@ if (isset($_GET['action_id']) && isset($_GET['new_status'])) {
         exit;
     }
 
-    // Logic: If Approved, set 30 days validity.
-    // If Rejected, set expiry to NULL.
-    $expiry = ($status === 'Approved')
-        ? date('Y-m-d', strtotime('+30 days'))
-        : null;
-
+    // expiry_date is NOT present in applications table
     if ($status === 'Approved') {
-
         $sql = "UPDATE applications
-                SET status = 'Approved',
-                    expiry_date = '$expiry'
+                SET status = 'Approved'
                 WHERE id = $id";
-
     } else {
-
         $sql = "UPDATE applications
-                SET status = 'Rejected',
-                    expiry_date = NULL
+                SET status = 'Rejected'
                 WHERE id = $id";
     }
 
     if (mysqli_query($conn, $sql)) {
-
         header("Location: manage_passes.php?msg=updated");
         exit;
     }
 }
 
 // ================= FETCH APPLICATIONS =================
-
 $query = "SELECT * FROM applications ORDER BY id DESC";
 $result = mysqli_query($conn, $query);
+
+
+// ================= DOCUMENT URL HELPER =================
+// If Cloudinary URL is stored, use it directly.
+// Otherwise use old uploads folder path.
+function documentUrl($file)
+{
+    if (empty($file)) {
+        return '';
+    }
+
+    // Cloudinary / external URL
+    if (filter_var($file, FILTER_VALIDATE_URL)) {
+        return $file;
+    }
+
+    // Old local upload filename
+    return "../uploads/" . rawurlencode(basename($file));
+}
 ?>
 
 <!DOCTYPE html>
@@ -227,6 +233,12 @@ $result = mysqli_query($conn, $query);
 
                 <?php while($row = mysqli_fetch_assoc($result)): ?>
 
+                    <?php
+                    $idCardUrl = documentUrl($row['id_card_doc']);
+                    $aadharUrl = documentUrl($row['aadhar_doc']);
+                    $bonafideUrl = documentUrl($row['bonafide_doc']);
+                    ?>
+
                     <tr>
 
                         <!-- Student Info -->
@@ -250,26 +262,52 @@ $result = mysqli_query($conn, $query);
 
                             <div class="d-flex justify-content-center gap-2">
 
-                                <button
-                                    onclick="viewDoc('../uploads/<?= htmlspecialchars($row['id_card_doc']) ?>', 'ID Card')"
-                                    class="doc-btn"
-                                >
-                                    <i class="fa fa-id-card"></i>
-                                </button>
+                                <?php if (!empty($idCardUrl)): ?>
 
-                                <button
-                                    onclick="viewDoc('../uploads/<?= htmlspecialchars($row['aadhar_doc']) ?>', 'Aadhar')"
-                                    class="doc-btn"
-                                >
-                                    <i class="fa fa-address-card"></i>
-                                </button>
+                                    <button
+                                        onclick="viewDoc(
+                                            '<?= htmlspecialchars($idCardUrl, ENT_QUOTES) ?>',
+                                            'ID Card'
+                                        )"
+                                        class="doc-btn"
+                                        title="View ID Card"
+                                    >
+                                        <i class="fa fa-id-card"></i>
+                                    </button>
 
-                                <button
-                                    onclick="viewDoc('../uploads/<?= htmlspecialchars($row['bonafide_doc']) ?>', 'Bonafide')"
-                                    class="doc-btn"
-                                >
-                                    <i class="fa fa-file-contract"></i>
-                                </button>
+                                <?php endif; ?>
+
+
+                                <?php if (!empty($aadharUrl)): ?>
+
+                                    <button
+                                        onclick="viewDoc(
+                                            '<?= htmlspecialchars($aadharUrl, ENT_QUOTES) ?>',
+                                            'Aadhar'
+                                        )"
+                                        class="doc-btn"
+                                        title="View Aadhar"
+                                    >
+                                        <i class="fa fa-address-card"></i>
+                                    </button>
+
+                                <?php endif; ?>
+
+
+                                <?php if (!empty($bonafideUrl)): ?>
+
+                                    <button
+                                        onclick="viewDoc(
+                                            '<?= htmlspecialchars($bonafideUrl, ENT_QUOTES) ?>',
+                                            'Bonafide'
+                                        )"
+                                        class="doc-btn"
+                                        title="View Bonafide"
+                                    >
+                                        <i class="fa fa-file-contract"></i>
+                                    </button>
+
+                                <?php endif; ?>
 
                             </div>
 
@@ -432,6 +470,11 @@ $result = mysqli_query($conn, $query);
 
 function viewDoc(url, title) {
 
+    if (!url) {
+        alert("Document is not available.");
+        return;
+    }
+
     document.getElementById('viewerFrame').src = url;
 
     document.getElementById('docTitle').innerText =
@@ -445,5 +488,4 @@ function viewDoc(url, title) {
 </script>
 
 </body>
-
 </html>
