@@ -4,7 +4,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 // ================= DB CONNECTION =================
-require_once "../config.php"; 
+require_once "../config.php";
 
 $message = "";
 
@@ -15,7 +15,7 @@ if (isset($_POST['register'])) {
     $password = $_POST['password'];
     $role     = 'student';
 
-    $check = mysqli_prepare($conn, "SELECT id FROM users WHERE email = ? LIMIT 1");
+    $check = mysqli_prepare($conn, "SELECT user_id FROM users WHERE email = ? LIMIT 1");
     mysqli_stmt_bind_param($check, "s", $email);
     mysqli_stmt_execute($check);
     mysqli_stmt_store_result($check);
@@ -24,7 +24,12 @@ if (isset($_POST['register'])) {
         $message = "Email is already registered!";
     } else {
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = mysqli_prepare($conn, "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)");
+
+        $stmt = mysqli_prepare(
+            $conn,
+            "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)"
+        );
+
         mysqli_stmt_bind_param($stmt, "ssss", $name, $email, $hashed_password, $role);
 
         if (mysqli_stmt_execute($stmt)) {
@@ -43,8 +48,10 @@ if (isset($_POST['register'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register | SmartPass</title>
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
     <style>
         body {
             height: 100vh;
@@ -53,8 +60,7 @@ if (isset($_POST['register'])) {
             align-items: center;
             justify-content: center;
             font-family: 'Plus Jakarta Sans', sans-serif;
-            /* Updated Professional Bus Station Background */
-            background: linear-gradient(rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.8)), 
+            background: linear-gradient(rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.8)),
                         url('https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=2070&auto=format&fit=crop');
             background-size: cover;
             background-position: center;
@@ -143,44 +149,74 @@ if (isset($_POST['register'])) {
         }
     </style>
 </head>
+
 <body>
 
     <div class="register-card text-center">
+
         <div class="header-section mb-4">
             <i class="fa-solid fa-bus-simple"></i>
             <h3>Get Started</h3>
-            <p class="text-muted small fw-bold">Register for your Digital Bus Pass</p>
+            <p class="text-muted small fw-bold">
+                Register for your Digital Bus Pass
+            </p>
         </div>
 
-        <?php if($message): ?>
-            <div class="alert alert-danger py-2 small fw-bold"><?= $message ?></div>
+        <?php if ($message): ?>
+            <div class="alert alert-danger py-2 small fw-bold">
+                <?= $message ?>
+            </div>
         <?php endif; ?>
 
         <form method="POST" autocomplete="off">
-            
+
             <div class="input-group-custom">
                 <i class="fa-solid fa-user-graduate"></i>
-                <input type="text" name="name" placeholder="Full Name" value="" autocomplete="off" required>
+                <input
+                    type="text"
+                    name="name"
+                    placeholder="Full Name"
+                    value=""
+                    autocomplete="off"
+                    required
+                >
             </div>
 
             <div class="input-group-custom">
                 <i class="fa-solid fa-envelope"></i>
-                <input type="email" name="email" placeholder="Email Address" value="" autocomplete="off" required>
+                <input
+                    type="email"
+                    name="email"
+                    placeholder="Email Address"
+                    value=""
+                    autocomplete="off"
+                    required
+                >
             </div>
 
             <div class="input-group-custom">
                 <i class="fa-solid fa-lock"></i>
-                <input type="password" name="password" placeholder="Create Password" value="" autocomplete="new-password" required>
+                <input
+                    type="password"
+                    name="password"
+                    placeholder="Create Password"
+                    value=""
+                    autocomplete="new-password"
+                    required
+                >
             </div>
 
             <button type="submit" name="register" class="btn-register">
                 Register <i class="fa-solid fa-arrow-right ms-2"></i>
             </button>
+
         </form>
 
         <div class="mt-4 small text-muted">
-            Already have an account? <a href="../user_login.php">Login here</a>
+            Already have an account?
+            <a href="../user_login.php">Login here</a>
         </div>
+
     </div>
 
 </body>
