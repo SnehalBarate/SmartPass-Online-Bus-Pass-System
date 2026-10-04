@@ -1,72 +1,55 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
 
 session_start();
 require_once "config.php";
 
 $error = "";
 
-if (isset($_POST['admin_login'])) {
+// ================= ADMIN LOGIN =================
+if (isset($_POST['login'])) {
 
-    $email = trim($_POST['email']);
-    $password = $_POST['password'];
+    $username = trim($_POST['username'] ?? '');
+    $password = $_POST['password'] ?? '';
 
-    // ==========================================
-    // SECURE ADMIN LOGIN USING PREPARED STATEMENT
-    // ==========================================
+    if ($username === '' || $password === '') {
 
-    $stmt = mysqli_prepare(
-        $conn,
-        "SELECT id, name, password
-         FROM users
-         WHERE email = ? AND role = 'admin'
-         LIMIT 1"
-    );
-
-    if ($stmt) {
-
-        mysqli_stmt_bind_param($stmt, "s", $email);
-        mysqli_stmt_execute($stmt);
-
-        $result = mysqli_stmt_get_result($stmt);
-
-        if ($result && mysqli_num_rows($result) === 1) {
-
-            $admin = mysqli_fetch_assoc($result);
-
-            // Verify hashed password
-            if (password_verify($password, $admin['password'])) {
-
-                // Prevent session fixation
-                session_unset();
-                session_regenerate_id(true);
-
-                $_SESSION['user_id'] = $admin['id'];
-                $_SESSION['name'] = $admin['name'];
-                $_SESSION['role'] = 'admin';
-
-                // Redirect to admin dashboard
-                header("Location: admin/dashboard.php");
-                exit;
-
-            } else {
-
-                $error = "Invalid password";
-            }
-
-        } else {
-
-            $error = "Admin not found";
-        }
-
-        mysqli_stmt_close($stmt);
+        $error = "Please enter username and password.";
 
     } else {
 
-        $error = "Something went wrong. Please try again.";
+        $stmt = mysqli_prepare(
+            $conn,
+            "SELECT admin_id, username, password
+             FROM admin
+             WHERE username = ?
+             LIMIT 1"
+        );
+
+        mysqli_stmt_bind_param($stmt, "s", $username);
+        mysqli_stmt_execute($stmt);
+
+        $result = mysqli_stmt_get_result($stmt);
+        $admin = mysqli_fetch_assoc($result);
+
+        if ($admin && $password === $admin['password']) {
+
+            session_regenerate_id(true);
+
+            $_SESSION['admin_id'] = $admin['admin_id'];
+            $_SESSION['user_id'] = $admin['admin_id'];
+            $_SESSION['name'] = $admin['username'];
+            $_SESSION['role'] = 'admin';
+
+            header("Location: admin/dashboard.php");
+            exit;
+
+        } else {
+
+            $error = "Invalid admin username or password.";
+        }
     }
 }
+
 ?>
 
 <!DOCTYPE html>
@@ -75,90 +58,64 @@ if (isset($_POST['admin_login'])) {
 <head>
 
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Admin Login | SmartPass</title>
 
-    <!-- Bootstrap 5 -->
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
         rel="stylesheet"
     >
 
-    <!-- Font Awesome -->
     <link
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
         rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"
     >
 
     <style>
 
         body {
             min-height: 100vh;
-            background: linear-gradient(180deg, #e8f0fe, #ffffff);
+            margin: 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: 'Segoe UI', sans-serif;
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
         }
 
         .login-card {
             width: 100%;
             max-width: 420px;
-            border-radius: 14px;
-            border: 1px solid #d6d9e0;
             background: #fff;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
         }
 
-        .login-header {
-            background: #f9fafc;
-            padding: 22px;
-            text-align: center;
-            border-bottom: 1px solid #d6d9e0;
-        }
-
-        .login-header h3 {
-            margin: 0;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .login-body {
-            padding: 28px;
-        }
-
-        .form-label {
-            font-weight: 500;
-            color: #333;
+        .icon {
+            font-size: 50px;
+            color: #2563eb;
+            margin-bottom: 15px;
         }
 
         .form-control {
-            border-radius: 8px;
-            padding: 10px;
-            border: 1px solid #cfd4dc;
-        }
-
-        .form-control:focus {
-            border-color: #4e73df;
-            box-shadow: 0 0 0 0.15rem rgba(78,115,223,.25);
+            padding: 13px;
+            border-radius: 10px;
         }
 
         .btn-login {
-            border-radius: 8px;
-            padding: 10px;
-            font-weight: 500;
+            width: 100%;
+            padding: 13px;
+            border: none;
+            border-radius: 10px;
+            background: #2563eb;
+            color: #fff;
+            font-weight: 700;
         }
 
-        .back-home {
-            display: block;
-            text-align: center;
-            margin-top: 18px;
-            color: #6c757d;
-            text-decoration: none;
-            font-size: 14px;
-        }
-
-        .back-home:hover {
-            color: #212529;
+        .btn-login:hover {
+            background: #1d4ed8;
         }
 
     </style>
@@ -167,111 +124,73 @@ if (isset($_POST['admin_login'])) {
 
 <body>
 
-<div class="card login-card shadow-sm">
+<div class="login-card">
 
-    <!-- Header -->
-    <div class="login-header">
+    <div class="text-center">
 
-        <h3>
-            <i class="fa-solid fa-user-shield me-2"></i>
-            Admin Login
+        <div class="icon">
+            <i class="fa-solid fa-user-shield"></i>
+        </div>
+
+        <h3 class="fw-bold">
+            SmartPass Admin
         </h3>
 
-        <small class="text-muted">
-            SmartPass Management System
-        </small>
+        <p class="text-muted">
+            Login to manage bus pass applications
+        </p>
 
     </div>
 
+    <?php if ($error): ?>
 
-    <!-- Login Body -->
-    <div class="login-body">
+        <div class="alert alert-danger">
+            <?= htmlspecialchars($error) ?>
+        </div>
 
-        <?php if ($error != "") { ?>
+    <?php endif; ?>
 
-            <div class="alert alert-danger text-center">
-                <?php echo htmlspecialchars($error); ?>
-            </div>
+    <form method="POST">
 
-        <?php } ?>
+        <div class="mb-3">
 
+            <label class="form-label fw-bold">
+                Username
+            </label>
 
-        <!-- Login Form -->
-        <form method="POST" autocomplete="off">
+            <input
+                type="text"
+                name="username"
+                class="form-control"
+                required
+            >
 
-            <!-- Autofill blocker -->
-            <input type="text" style="display:none">
-            <input type="password" style="display:none">
+        </div>
 
+        <div class="mb-4">
 
-            <!-- Email -->
-            <div class="mb-3">
+            <label class="form-label fw-bold">
+                Password
+            </label>
 
-                <label class="form-label">
-                    <i class="fa-solid fa-envelope me-1"></i>
-                    Email
-                </label>
+            <input
+                type="password"
+                name="password"
+                class="form-control"
+                required
+            >
 
-                <input
-                    type="email"
-                    name="email"
-                    class="form-control"
-                    autocomplete="off"
-                    readonly
-                    onfocus="this.removeAttribute('readonly');"
-                    required
-                >
+        </div>
 
-            </div>
+        <button
+            type="submit"
+            name="login"
+            class="btn-login"
+        >
+            Login
+        </button>
 
-
-            <!-- Password -->
-            <div class="mb-3">
-
-                <label class="form-label">
-                    <i class="fa-solid fa-lock me-1"></i>
-                    Password
-                </label>
-
-                <input
-                    type="password"
-                    name="password"
-                    class="form-control"
-                    autocomplete="new-password"
-                    readonly
-                    onfocus="this.removeAttribute('readonly');"
-                    required
-                >
-
-            </div>
-
-
-            <!-- Login Button -->
-            <div class="d-grid mt-4">
-
-                <button
-                    type="submit"
-                    name="admin_login"
-                    class="btn btn-dark btn-login"
-                >
-                    <i class="fa-solid fa-right-to-bracket me-1"></i>
-                    Login
-                </button>
-
-            </div>
-
-        </form>
-
-
-        <!-- Back to Home -->
-        <a href="index.php" class="back-home">
-
-            <i class="fa-solid fa-arrow-left me-1"></i>
-            Back to Home
-
-        </a>
-
-    </div>
+    </form>
 
 </div>
 
