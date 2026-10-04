@@ -1,5 +1,4 @@
 <?php
-// ================== SESSION & DB ==================
 session_start();
 require_once "../config.php";
 
@@ -41,20 +40,10 @@ if (isset($_POST['apply'])) {
     $from      = trim($_POST['route_from'] ?? '');
     $to        = trim($_POST['route_to'] ?? '');
 
-    // ================== UPLOAD DIRECTORY ==================
-    $upload_dir = __DIR__ . "/../uploads/";
+    // ================== CLOUDINARY ==================
+    $cloud_name = "aigprb7t";
+    $upload_preset = "smartpass";
 
-    if (!is_dir($upload_dir)) {
-        if (!mkdir($upload_dir, 0775, true)) {
-            die("Failed to create uploads directory.");
-        }
-    }
-
-    if (!is_writable($upload_dir)) {
-        die("Uploads directory is not writable.");
-    }
-
-    // ================== REQUIRED FILES ==================
     $docs = [
         'photo',
         'bonafide_doc',
@@ -62,6 +51,8 @@ if (isset($_POST['apply'])) {
         'id_card_doc',
         'aadhar_doc'
     ];
+
+    $files = [];
 
     // ================== CHECK FILES ==================
     foreach ($docs as $doc) {
@@ -82,36 +73,50 @@ if (isset($_POST['apply'])) {
         }
     }
 
-    // ================== UPLOAD FILES ==================
-    $files = [];
-
+    // ================== UPLOAD TO CLOUDINARY ==================
     foreach ($docs as $doc) {
 
-        $original_name = basename($_FILES[$doc]['name']);
+        $tmp_file = $_FILES[$doc]['tmp_name'];
 
-        $extension = pathinfo($original_name, PATHINFO_EXTENSION);
+        $ch = curl_init();
 
-        $safe_extension = $extension !== ''
-            ? '.' . preg_replace('/[^a-zA-Z0-9]/', '', $extension)
-            : '';
+        $post_data = [
+            'file' => new CURLFile(
+                $tmp_file,
+                $_FILES[$doc]['type'],
+                $_FILES[$doc]['name']
+            ),
+            'upload_preset' => $upload_preset
+        ];
 
-        $filename = time() . "_" . uniqid() . "_" . $doc . $safe_extension;
+        curl_setopt_array($ch, [
+            CURLOPT_URL => "https://api.cloudinary.com/v1_1/" . $cloud_name . "/auto/upload",
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $post_data,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 120
+        ]);
 
-        $target = $upload_dir . $filename;
+        $response = curl_exec($ch);
 
-        if (!move_uploaded_file(
-            $_FILES[$doc]['tmp_name'],
-            $target
-        )) {
-            die("Failed to save uploaded file: " . $doc);
+        if ($response === false) {
+            die("Cloudinary upload failed: " . curl_error($ch));
         }
 
-        // Confirm file actually exists
-        if (!file_exists($target)) {
-            die("Uploaded file could not be verified: " . $doc);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        $result_cloudinary = json_decode($response, true);
+
+        if ($http_code < 200 || $http_code >= 300 || !isset($result_cloudinary['secure_url'])) {
+            $error_message = $result_cloudinary['error']['message']
+                ?? "Unknown Cloudinary error";
+
+            die("Cloudinary upload failed for $doc: " . $error_message);
         }
 
-        $files[$doc] = $filename;
+        // Store Cloudinary URL
+        $files[$doc] = $result_cloudinary['secure_url'];
     }
 
     // ================== INSERT APPLICATION ==================
@@ -377,7 +382,6 @@ if (isset($_POST['apply'])) {
             <div class="row g-4 mb-5">
 
                 <div class="col-md-6">
-
                     <label class="form-label">
                         Full Name
                     </label>
@@ -389,11 +393,9 @@ if (isset($_POST['apply'])) {
                         placeholder="As per documents"
                         required
                     >
-
                 </div>
 
                 <div class="col-md-6">
-
                     <label class="form-label">
                         College / Institution
                     </label>
@@ -405,11 +407,9 @@ if (isset($_POST['apply'])) {
                         placeholder="Full college name"
                         required
                     >
-
                 </div>
 
                 <div class="col-md-6">
-
                     <label class="form-label">
                         Starting Point (From)
                     </label>
@@ -421,11 +421,9 @@ if (isset($_POST['apply'])) {
                         placeholder="Home stop"
                         required
                     >
-
                 </div>
 
                 <div class="col-md-6">
-
                     <label class="form-label">
                         Destination (To)
                     </label>
@@ -437,21 +435,17 @@ if (isset($_POST['apply'])) {
                         placeholder="College stop"
                         required
                     >
-
                 </div>
 
             </div>
 
             <div class="section-header">
-
                 <h4>Document Verification</h4>
-
             </div>
 
             <div class="row g-4">
 
                 <div class="col-md-4">
-
                     <div class="upload-box">
 
                         <i class="fa-solid fa-camera"></i>
@@ -469,11 +463,9 @@ if (isset($_POST['apply'])) {
                         >
 
                     </div>
-
                 </div>
 
                 <div class="col-md-4">
-
                     <div class="upload-box">
 
                         <i class="fa-solid fa-file-contract"></i>
@@ -490,11 +482,9 @@ if (isset($_POST['apply'])) {
                         >
 
                     </div>
-
                 </div>
 
                 <div class="col-md-4">
-
                     <div class="upload-box">
 
                         <i class="fa-solid fa-stamp"></i>
@@ -511,11 +501,9 @@ if (isset($_POST['apply'])) {
                         >
 
                     </div>
-
                 </div>
 
                 <div class="col-md-6">
-
                     <div class="upload-box">
 
                         <i class="fa-solid fa-id-card"></i>
@@ -532,11 +520,9 @@ if (isset($_POST['apply'])) {
                         >
 
                     </div>
-
                 </div>
 
                 <div class="col-md-6">
-
                     <div class="upload-box">
 
                         <i class="fa-solid fa-address-card"></i>
@@ -553,7 +539,6 @@ if (isset($_POST['apply'])) {
                         >
 
                     </div>
-
                 </div>
 
             </div>
