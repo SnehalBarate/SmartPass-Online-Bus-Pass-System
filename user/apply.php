@@ -1,8 +1,4 @@
 <?php
-// ================== ERROR REPORTING ==================
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
 // ================== SESSION & DB ==================
 session_start();
 require_once "../config.php";
@@ -24,6 +20,10 @@ $check = mysqli_prepare(
      LIMIT 1"
 );
 
+if (!$check) {
+    die("Database error: " . mysqli_error($conn));
+}
+
 mysqli_stmt_bind_param($check, "i", $user_id);
 mysqli_stmt_execute($check);
 $result = mysqli_stmt_get_result($check);
@@ -33,16 +33,28 @@ if (mysqli_num_rows($result) > 0 && !isset($_POST['apply'])) {
     exit;
 }
 
-// ================== FORM SUBMIT LOGIC ==================
+// ================== FORM SUBMIT ==================
 if (isset($_POST['apply'])) {
 
-    $full_name = trim($_POST['full_name']);
-    $college   = trim($_POST['college']);
-    $from      = trim($_POST['route_from']);
-    $to        = trim($_POST['route_to']);
+    $full_name = trim($_POST['full_name'] ?? '');
+    $college   = trim($_POST['college'] ?? '');
+    $from      = trim($_POST['route_from'] ?? '');
+    $to        = trim($_POST['route_to'] ?? '');
 
-    $upload_dir = "../uploads/";
+    // ================== UPLOAD DIRECTORY ==================
+    $upload_dir = __DIR__ . "/../uploads/";
 
+    if (!is_dir($upload_dir)) {
+        if (!mkdir($upload_dir, 0775, true)) {
+            die("Failed to create uploads directory.");
+        }
+    }
+
+    if (!is_writable($upload_dir)) {
+        die("Uploads directory is not writable.");
+    }
+
+    // ================== REQUIRED FILES ==================
     $docs = [
         'photo',
         'bonafide_doc',
@@ -51,18 +63,22 @@ if (isset($_POST['apply'])) {
         'aadhar_doc'
     ];
 
-    // ================== CHECK FILE UPLOAD ==================
+    // ================== CHECK FILES ==================
     foreach ($docs as $doc) {
 
         if (!isset($_FILES[$doc])) {
             die("File missing: " . $doc);
         }
 
-        if ($_FILES[$doc]['error'] !== 0) {
+        if ($_FILES[$doc]['error'] !== UPLOAD_ERR_OK) {
             die(
                 "Upload error in " . $doc .
                 " | Error code: " . $_FILES[$doc]['error']
             );
+        }
+
+        if ($_FILES[$doc]['size'] <= 0) {
+            die("Empty file uploaded: " . $doc);
         }
     }
 
@@ -72,12 +88,27 @@ if (isset($_POST['apply'])) {
     foreach ($docs as $doc) {
 
         $original_name = basename($_FILES[$doc]['name']);
-        $filename = time() . "_" . $original_name;
+
+        $extension = pathinfo($original_name, PATHINFO_EXTENSION);
+
+        $safe_extension = $extension !== ''
+            ? '.' . preg_replace('/[^a-zA-Z0-9]/', '', $extension)
+            : '';
+
+        $filename = time() . "_" . uniqid() . "_" . $doc . $safe_extension;
 
         $target = $upload_dir . $filename;
 
-        if (!move_uploaded_file($_FILES[$doc]['tmp_name'], $target)) {
-            die("Could not save uploaded file: " . $doc);
+        if (!move_uploaded_file(
+            $_FILES[$doc]['tmp_name'],
+            $target
+        )) {
+            die("Failed to save uploaded file: " . $doc);
+        }
+
+        // Confirm file actually exists
+        if (!file_exists($target)) {
+            die("Uploaded file could not be verified: " . $doc);
         }
 
         $files[$doc] = $filename;
@@ -126,6 +157,7 @@ if (isset($_POST['apply'])) {
         die("Database insert error: " . mysqli_stmt_error($stmt));
     }
 
+    // ================== SUCCESS ==================
     header("Location: application_success.php");
     exit;
 }
@@ -136,11 +168,23 @@ if (isset($_POST['apply'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Apply Pass | SmartPass</title>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap"
+        rel="stylesheet"
+    >
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"
+    >
 
     <style>
         :root {
@@ -281,44 +325,63 @@ if (isset($_POST['apply'])) {
 <body>
 
 <div class="sidebar">
+
     <h2>
-        <i class="fa-solid fa-bus-simple me-2"></i> SmartPass
+        <i class="fa-solid fa-bus-simple me-2"></i>
+        SmartPass
     </h2>
 
     <a href="dashboard.php">
-        <i class="fa-solid fa-house"></i> Dashboard
+        <i class="fa-solid fa-house"></i>
+        Dashboard
     </a>
 
     <a href="apply.php" class="active">
-        <i class="fa-solid fa-file-signature"></i> Apply Pass
+        <i class="fa-solid fa-file-signature"></i>
+        Apply Pass
     </a>
 
     <a href="profile.php">
-        <i class="fa-solid fa-user-gear"></i> Profile
+        <i class="fa-solid fa-user-gear"></i>
+        Profile
     </a>
 
-    <a href="../logout.php"
-       style="margin-top: 50px; color: #f87171;">
-        <i class="fa-solid fa-power-off"></i> Logout
+    <a
+        href="../logout.php"
+        style="margin-top: 50px; color: #f87171;"
+    >
+        <i class="fa-solid fa-power-off"></i>
+        Logout
     </a>
+
 </div>
 
 <div class="main-content">
+
     <div class="form-container mx-auto">
 
         <div class="section-header">
             <h4>Application for Bus Pass</h4>
+
             <p class="text-muted m-0">
                 Please fill in your details and upload clear documents.
             </p>
         </div>
 
-        <form method="POST" action="apply.php" enctype="multipart/form-data">
+        <form
+            method="POST"
+            action="apply.php"
+            enctype="multipart/form-data"
+        >
 
             <div class="row g-4 mb-5">
 
                 <div class="col-md-6">
-                    <label class="form-label">Full Name</label>
+
+                    <label class="form-label">
+                        Full Name
+                    </label>
+
                     <input
                         type="text"
                         name="full_name"
@@ -326,10 +389,15 @@ if (isset($_POST['apply'])) {
                         placeholder="As per documents"
                         required
                     >
+
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label">College / Institution</label>
+
+                    <label class="form-label">
+                        College / Institution
+                    </label>
+
                     <input
                         type="text"
                         name="college"
@@ -337,10 +405,15 @@ if (isset($_POST['apply'])) {
                         placeholder="Full college name"
                         required
                     >
+
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label">Starting Point (From)</label>
+
+                    <label class="form-label">
+                        Starting Point (From)
+                    </label>
+
                     <input
                         type="text"
                         name="route_from"
@@ -348,10 +421,15 @@ if (isset($_POST['apply'])) {
                         placeholder="Home stop"
                         required
                     >
+
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label">Destination (To)</label>
+
+                    <label class="form-label">
+                        Destination (To)
+                    </label>
+
                     <input
                         type="text"
                         name="route_to"
@@ -359,18 +437,23 @@ if (isset($_POST['apply'])) {
                         placeholder="College stop"
                         required
                     >
+
                 </div>
 
             </div>
 
             <div class="section-header">
+
                 <h4>Document Verification</h4>
+
             </div>
 
             <div class="row g-4">
 
                 <div class="col-md-4">
+
                     <div class="upload-box">
+
                         <i class="fa-solid fa-camera"></i>
 
                         <label class="form-label d-block">
@@ -384,11 +467,15 @@ if (isset($_POST['apply'])) {
                             accept="image/*"
                             required
                         >
+
                     </div>
+
                 </div>
 
                 <div class="col-md-4">
+
                     <div class="upload-box">
+
                         <i class="fa-solid fa-file-contract"></i>
 
                         <label class="form-label d-block">
@@ -401,11 +488,15 @@ if (isset($_POST['apply'])) {
                             class="form-control form-control-sm"
                             required
                         >
+
                     </div>
+
                 </div>
 
                 <div class="col-md-4">
+
                     <div class="upload-box">
+
                         <i class="fa-solid fa-stamp"></i>
 
                         <label class="form-label d-block">
@@ -418,11 +509,15 @@ if (isset($_POST['apply'])) {
                             class="form-control form-control-sm"
                             required
                         >
+
                     </div>
+
                 </div>
 
                 <div class="col-md-6">
+
                     <div class="upload-box">
+
                         <i class="fa-solid fa-id-card"></i>
 
                         <label class="form-label d-block">
@@ -435,11 +530,15 @@ if (isset($_POST['apply'])) {
                             class="form-control form-control-sm"
                             required
                         >
+
                     </div>
+
                 </div>
 
                 <div class="col-md-6">
+
                     <div class="upload-box">
+
                         <i class="fa-solid fa-address-card"></i>
 
                         <label class="form-label d-block">
@@ -452,7 +551,9 @@ if (isset($_POST['apply'])) {
                             class="form-control form-control-sm"
                             required
                         >
+
                     </div>
+
                 </div>
 
             </div>
@@ -463,12 +564,14 @@ if (isset($_POST['apply'])) {
                 class="btn-apply"
             >
                 Submit Application
+
                 <i class="fa-solid fa-paper-plane ms-2"></i>
             </button>
 
         </form>
 
     </div>
+
 </div>
 
 </body>
